@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>لعبة النرد: حروف العلة والحروف الساكنة • Vowels & Consonants</title>
+
+  <!-- Tailwind CSS & Canvas Confetti -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Google Fonts: Fredoka & Tajawal -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Tajawal', sans-serif;
+      background: radial-gradient(circle at 50% 10%, #e0f2fe 0%, #ecfdf5 45%, #fef3c7 100%);
+      min-height: 100vh;
+      color: #1e293b;
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    .en-font {
+      font-family: 'Fredoka', cursive, sans-serif;
+    }
+
+    /* 3D Dice Perspective and Physics */
+    .dice-scene {
+      width: 90px;
+      height: 90px;
+      perspective: 600px;
+      margin: 0 auto;
+    }
+
+    .dice-cube {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transform: translateZ(-45px);
+      transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+    }
+
+    .dice-face {
+      position: absolute;
+      width: 90px;
+      height: 90px;
+      background: linear-gradient(145deg, #ffffff, #f1f5f9);
+      border: 3px solid #38bdf8;
+      border-radius: 20px;
+      box-shadow: inset 0 0 15px rgba(14, 165, 233, 0.15), 0 8px 20px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Fredoka', cursive;
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #0369a1;
+    }
+
+    /* 6 Faces Orientation */
+    .face-1 { transform: rotateY(0deg) translateZ(45px); }
+    .face-2 { transform: rotateY(90deg) translateZ(45px); }
+    .face-3 { transform: rotateY(180deg) translateZ(45px); }
+    .face-4 { transform: rotateY(-90deg) translateZ(45px); }
+    .face-5 { transform: rotateX(90deg) translateZ(45px); }
+    .face-6 { transform: rotateX(-90deg) translateZ(45px); }
+
+    /* Rolling Keyframe for random tumbling */
+    @keyframes rollTumble {
+      0% { transform: translateZ(-45px) rotateX(0) rotateY(0) rotateZ(0); }
+      30% { transform: translateZ(-45px) rotateX(720deg) rotateY(360deg) rotateZ(180deg) scale(1.15); }
+      70% { transform: translateZ(-45px) rotateX(1080deg) rotateY(900deg) rotateZ(360deg) scale(1.1); }
+      100% { transform: translateZ(-45px) rotateX(var(--targetX)) rotateY(var(--targetY)) rotateZ(0); }
+    }
+
+    .is-rolling {
+      animation: rollTumble 1.1s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+
+    /* Game Board Tiles */
+    .board-tile {
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+    }
+    .board-tile:hover {
+      transform: translateY(-2px);
+    }
+    .board-tile.current-active {
+      box-shadow: 0 0 0 4px #f59e0b, 0 10px 20px -3px rgba(245, 158, 11, 0.4);
+      transform: scale(1.08);
+      animation: bouncePawn 1s infinite alternate;
+    }
+    @keyframes bouncePawn {
+      from { transform: scale(1.05) translateY(0); }
+      to { transform: scale(1.08) translateY(-4px); }
+    }
+
+    /* Button Pops & Card Shakes */
+    .pop-btn:active {
+      transform: scale(0.94);
+    }
+    @keyframes shakeCard {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .shake-error {
+      animation: shakeCard 0.45s ease-in-out;
+    }
+  </style>
+</head>
+<body class="p-2 sm:p-4 md:p-6 flex justify-center">
+
+  <div class="w-full max-w-4xl flex flex-col items-center">
+
+    <!-- Header Ribbon -->
+    <header class="w-full flex flex-wrap items-center justify-between gap-3 bg-white/95 backdrop-blur-md px-4 py-3 rounded-3xl shadow-md border-2 border-sky-200 mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-400 via-rose-400 to-sky-400 text-white text-2xl flex items-center justify-center shadow-sm">
+          🎲
+        </div>
+        <div>
+          <h1 class="text-sm sm:text-base font-black text-slate-800 leading-tight">لعبة النرد: حروف العلة والساكنة</h1>
+          <p class="text-[11px] text-sky-700 font-bold">Vowels & Consonants Phonics Dice Game 🇨🇦</p>
+        </div>
+      </div>
+
+      <!-- Quick Controls & Score -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <!-- Game Rules Modal Trigger -->
+        <button onclick="toggleRulesModal(true)" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 text-xs font-black transition flex items-center gap-1 pop-btn">
+          <span>📖</span>
+          <span>شرح القواعد</span>
+        </button>
+
+        <!-- Toggle Sound -->
+        <button onclick="toggleAudio()" id="soundToggleBtn" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-black transition flex items-center gap-1 pop-btn">
+          <span id="soundIcon">🔊</span>
+          <span id="soundText">الصوت: مفعل</span>
+        </button>
+
+        <!-- Live Score & Stars -->
+        <div class="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white text-xs sm:text-sm font-black flex items-center gap-1.5 shadow-sm">
+          <span>⭐ النقاط:</span>
+          <span id="scoreDisplay" class="en-font text-base font-black">0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Vowels Quick Reference Capsule (قاعدة حروف العلة الخمسة) -->
+    <section class="w-full bg-white rounded-3xl p-3 sm:p-4 mb-4 border-2 border-amber-300 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <span class="text-2xl">🍎</span>
+        <div>
+          <span class="text-xs sm:text-sm font-black text-amber-950 block">تذكر دائماً: حروف العلة (Vowels) عددها 5 فقط!</span>
+          <span class="text-[11px] text-slate-500 font-bold">وباقي الحروف الإنجليزية الـ 21 هي حروف ساكنة (Consonants).</span>
+        </div>
+      </div>
+
+      <!-- The 5 Vowels Floating Badges -->
+      <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-center" dir="ltr">
+        <button onclick="playPhonicsLetter('A', 'Apple', true)" class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-rose-100 border-2 border-rose-300 text-rose-800 text-lg font-black en-font flex items-center justify-center hover:scale-110 transition shadow-xs pop-btn" title="A - Apple">
+          A
+        </button>
+        <button onclick="playPhonicsLetter('E', 'Elephant', true)" class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-100 border-2 border-amber-300 text-amber-800 text-lg font-black en-font flex items-center justify-center hover:scale-110 transition shadow-xs pop-btn" title="E - Elephant">
+          E
+        </button>
+        <button onclick="playPhonicsLetter('I', 'Igloo', true)" class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-emerald-100 border-2 border-emerald-300 text-emerald-800 text-lg font-black en-font flex items-center justify-center hover:scale-110 transition shadow-xs pop-btn" title="I - Igloo">
+          I
+        </button>
+        <button onclick="playPhonicsLetter('O', 'Orange', true)" class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-sky-100 border-2 border-sky-300 text-sky-800 text-lg font-black en-font flex items-center justify-center hover:scale-110 transition shadow-xs pop-btn" title="O - Orange">
+          O
+        </button>
+        <button onclick="playPhonicsLetter('U', 'Umbrella', true)" class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-purple-100 border-2 border-purple-300 text-purple-800 text-lg font-black en-font flex items-center justify-center hover:scale-110 transition shadow-xs pop-btn" title="U - Umbrella">
+          U
+        </button>
+      </div>
+    </section>
+
+    <!-- Game Mode Switcher & Stats Bar -->
+    <div class="w-full flex items-center justify-between mb-4 flex-wrap gap-2">
+      <div class="inline-flex rounded-2xl bg-slate-200/80 p-1 border border-slate-300">
+        <button onclick="switchGameMode('board')" id="btnModeBoard" class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-black transition bg-white text-sky-700 shadow-xs flex items-center gap-1.5">
+          <span>🗺️</span>
+          <span>سباق رقعة النرد (Board Race)</span>
+        </button>
+        <button onclick="switchGameMode('quick')" id="btnModeQuick" class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-black transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+          <span>⚡</span>
+          <span>تحدي رمي النرد السريع (Fast Dice)</span>
+        </button>
+      </div>
+
+      <!-- Current Turn / Streak Badge -->
+      <div class="flex items-center gap-2">
+        <span class="px-3 py-1 rounded-xl bg-amber-100 border border-amber-300 text-amber-900 text-xs font-black flex items-center gap-1">
+          <span>🔥 سلسلة الإجابات:</span>
+          <span id="streakDisplay" class="en-font font-bold">0</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- MAIN INTERACTIVE CONTAINER -->
+    <main class="w-full bg-white rounded-3xl p-4 sm:p-6 shadow-2xl border-4 border-sky-300 relative overflow-hidden">
+      
+      <!-- Upper Section: 3D Dice & Action Control Center -->
+      <div class="bg-gradient-to-br from-sky-50 via-indigo-50/40 to-amber-50 rounded-2xl p-4 sm:p-5 border-2 border-sky-200 mb-6 flex flex-col md:flex-row items-center justify-between gap-5 shadow-xs">
+        
+        <!-- Player Avatar & Status -->
+        <div class="flex items-center gap-3">
+          <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white border-2 border-sky-300 shadow-sm flex items-center justify-center text-3xl sm:text-4xl" id="playerAvatarBox">
+            🐰
+          </div>
+          <div>
+            <span class="text-xs font-black text-sky-800 bg-sky-100 px-2 py-0.5 rounded-md inline-block mb-1">اللاعب البطل</span>
+            <h3 class="text-sm sm:text-base font-black text-slate-900" id="playerStatusTitle">حان دورك لرمي النرد!</h3>
+            <p class="text-xs text-slate-500 font-bold" id="playerStatusDesc">اضغط على زر الرمي وسينطلق النرد بالدوران</p>
+          </div>
+        </div>
+
+        <!-- 3D Interactive Rolling Dice Scene -->
+        <div class="flex flex-col items-center">
+          <div class="dice-scene" id="diceSceneWrapper" onclick="rollDiceAction()">
+            <div class="dice-cube" id="diceCube">
+              <div class="dice-face face-1" id="df-1">1</div>
+              <div class="dice-face face-2" id="df-2">2</div>
+              <div class="dice-face face-3" id="df-3">3</div>
+              <div class="dice-face face-4" id="df-4">4</div>
+              <div class="dice-face face-5" id="df-5">5</div>
+              <div class="dice-face face-6" id="df-6">6</div>
+            </div>
+          </div>
+          <span class="text-[10px] font-bold text-slate-400 mt-2">انقر على النرد أو الزر أدناه 🎲</span>
+        </div>
+
+        <!-- Big Roll Dice Button -->
+        <div class="flex flex-col items-center gap-2">
+          <button onclick="rollDiceAction()" id="btnRollDice" class="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black text-base shadow-lg border-2 border-amber-300 flex items-center gap-2.5 transition active:scale-95 pop-btn">
+            <span class="text-xl">🎲</span>
+            <span>ارمِ النرد الآن!</span>
+          </button>
+          <span class="text-[11px] text-slate-500 font-bold" id="diceOutcomeSummary">النتيجة السابقة: جاهز للرمي</span>
+        </div>
+
+      </div>
+
+      <!-- VIEW 1: BOARD RACE VIEW (رقعة اللعبة الشائقة) -->
+      <section id="viewBoardRace" class="w-full">
+        <div class="flex items-center justify-between mb-3 px-1">
+          <div class="flex items-center gap-2">
+            <span class="text-base font-black text-slate-800">مسار السباق نحو قلعة المعرفة 🏰</span>
+            <span class="text-xs font-bold text-slate-400">(24 خطوة ممتعة)</span>
+          </div>
+          <span class="text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+            موقعك: الخانة <span id="currentTileNum" class="en-font">1</span> من 24
+          </span>
+        </div>
+
+        <!-- The 24 Grid Board Tiles -->
+        <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 sm:gap-2.5 p-3 rounded-2xl bg-slate-50 border-2 border-dashed border-sky-300" id="boardGridContainer">
+          <!-- Dynamically Generated 24 Tiles in JavaScript -->
+        </div>
+      </section>
+
+      <!-- VIEW 2: QUICK DICE SORTING CHALLENGE VIEW -->
+      <section id="viewQuickChallenge" class="w-full hidden">
+        <div class="text-center mb-4">
+          <h3 class="text-base sm:text-lg font-black text-slate-800">تحدي النرد السريع: صنّف الحرف فوراً! ⚡</h3>
+          <p class="text-xs text-slate-500 font-bold">ارمِ النرد ليظهر لك حرف، ثم اختر فوراً هل هو حرف علة أم حرف ساكن</p>
+        </div>
+
+        <!-- Fast Question Stage Card -->
+        <div class="bg-amber-50/70 border-2 border-amber-300 rounded-3xl p-5 sm:p-7 flex flex-col items-center text-center max-w-lg mx-auto shadow-sm">
+          
+          <span class="text-xs font-black text-amber-800 bg-amber-100 px-3 py-1 rounded-full mb-3">
+            الحرف المعروض حالياً:
+          </span>
+
+          <!-- Huge Current Letter Display -->
+          <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-white border-4 border-amber-400 shadow-md flex items-center justify-center text-5xl sm:text-6xl font-black text-sky-700 en-font mb-4" id="quickLetterBadge">
+            A
+          </div>
+
+          <!-- Sound & Example hint -->
+          <div class="flex items-center gap-2 mb-6">
+            <button onclick="playCurrentChallengeAudio()" class="px-3 py-1.5 rounded-xl bg-sky-100 hover:bg-sky-200 text-sky-900 text-xs font-black flex items-center gap-1.5 transition">
+              <span>🔊</span>
+              <span>استمع لصوت الحرف والكلمة</span>
+            </button>
+            <span class="text-xs font-bold text-slate-500 en-font" id="quickWordHint">Apple 🍎</span>
+          </div>
+
+          <!-- Two Main Decision Buttons -->
+          <div class="w-full grid grid-cols-1 sm:grid-cols-2 gap-3" dir="ltr">
+            
+            <!-- Vowel Choice Button -->
+            <button onclick="answerClassification('vowel')" class="p-3.5 rounded-2xl bg-rose-50 hover:bg-rose-100 border-2 border-rose-300 text-rose-900 font-black text-sm sm:text-base flex flex-col items-center justify-center gap-1 shadow-sm transition active:scale-95 pop-btn">
+              <span class="text-2xl">🍎 Vowel</span>
+              <span class="text-xs font-bold text-rose-700" dir="rtl">(حرف علّة)</span>
+              <span class="text-[10px] text-rose-500 font-sans mt-0.5">A - E - I - O - U</span>
+            </button>
+
+            <!-- Consonant Choice Button -->
+            <button onclick="answerClassification('consonant')" class="p-3.5 rounded-2xl bg-sky-50 hover:bg-sky-100 border-2 border-sky-300 text-sky-900 font-black text-sm sm:text-base flex flex-col items-center justify-center gap-1 shadow-sm transition active:scale-95 pop-btn">
+              <span class="text-2xl">🧱 Consonant</span>
+              <span class="text-xs font-bold text-sky-700" dir="rtl">(حرف ساكن)</span>
+              <span class="text-[10px] text-sky-500 font-sans mt-0.5">باقي الحروف الـ 21</span>
+            </button>
+
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Controls & Reset -->
+    <div class="w-full mt-4 flex items-center justify-between gap-3 flex-wrap">
+      <div class="flex items-center gap-2">
+        <button onclick="resetWholeGame()" class="px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-300 text-slate-700 font-bold text-xs sm:text-sm shadow-xs flex items-center gap-1.5 transition active:scale-95 pop-btn">
+          <span>🔄</span>
+          <span>إعادة اللعبة من البداية</span>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-bold text-slate-400">لعبة النرد الصوتية • Top Phonics Learning Game</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Pop-Up Modal for Board Tile Challenge -->
+  <div id="tileChallengeModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-200 opacity-0 pointer-events-none">
+    <div class="bg-white rounded-3xl p-5 sm:p-7 max-w-md w-full shadow-2xl border-4 border-sky-300 transform scale-90 transition-transform duration-200 text-center" id="tileModalContent">
+      
+      <!-- Header Badge -->
+      <div class="w-12 h-12 rounded-2xl bg-sky-100 text-sky-700 text-2xl flex items-center justify-center mx-auto mb-2 border border-sky-200">
+        🎲
+      </div>
+      <h3 class="text-base sm:text-lg font-black text-slate-900 mb-1" id="tileModalTitle">لقد هبطت على الخانة!</h3>
+      <p class="text-xs text-slate-500 font-bold mb-4">أجب على التحدي الصوتي لتكسب النجوم وتثبّت موقعك:</p>
+
+      <!-- Letter Display Card -->
+      <div class="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 mb-5 flex flex-col items-center">
+        <span class="text-[11px] font-bold text-amber-800 mb-1">ما هو نوع هذا الحرف؟</span>
+        <div class="text-6xl font-black text-sky-800 en-font my-1" id="tileModalLetter">
+          B
+        </div>
+        <div class="flex items-center gap-2 mt-1">
+          <button onclick="playCurrentModalLetterAudio()" class="px-3 py-1 rounded-xl bg-white border border-amber-300 text-amber-900 text-xs font-black flex items-center gap-1 shadow-2xs">
+            <span>🔊</span>
+            <span id="tileModalWordHint">Ball ⚽</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Two Big Decision Buttons -->
+      <div class="grid grid-cols-2 gap-3 mb-3" dir="ltr">
+        <button onclick="evaluateModalAnswer('vowel')" class="py-3 px-2 rounded-2xl bg-rose-50 hover:bg-rose-100 border-2 border-rose-300 text-rose-900 font-black text-xs sm:text-sm flex flex-col items-center gap-1 transition active:scale-95 pop-btn">
+          <span class="text-xl">🍎 Vowel</span>
+          <span class="text-[11px] font-bold" dir="rtl">حرف علّة</span>
+        </button>
+
+        <button onclick="evaluateModalAnswer('consonant')" class="py-3 px-2 rounded-2xl bg-sky-50 hover:bg-sky-100 border-2 border-sky-300 text-sky-900 font-black text-xs sm:text-sm flex flex-col items-center gap-1 transition active:scale-95 pop-btn">
+          <span class="text-xl">🧱 Consonant</span>
+          <span class="text-[11px] font-bold" dir="rtl">حرف ساكن</span>
+        </button>
+      </div>
+
+      <p class="text-[11px] text-slate-400 font-bold">تذكر: حروف العلة هي A, E, I, O, U فقط ⭐</p>
+    </div>
+  </div>
+
+  <!-- Game Rules Information Modal -->
+  <div id="rulesModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-200 opacity-0 pointer-events-none">
+    <div class="bg-white rounded-3xl p-5 sm:p-7 max-w-lg w-full shadow-2xl border-4 border-indigo-300 text-right">
+      
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">📖</span>
+          <h3 class="text-base sm:text-lg font-black text-slate-900">قواعد لعبة النرد التعليمية</h3>
+        </div>
+        <button onclick="toggleRulesModal(false)" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm flex items-center justify-center">✕</button>
+      </div>
+
+      <div class="space-y-3.5 text-xs sm:text-sm text-slate-700 leading-relaxed font-bold">
+        <div class="p-3 rounded-2xl bg-rose-50 border border-rose-200">
+          <h4 class="font-black text-rose-900 text-sm mb-1 flex items-center gap-1">
+            <span>🍎 1. حروف العلة (Vowels):</span>
+          </h4>
+          <p class="text-rose-950 font-normal">
+            هي 5 حروف فقط في اللغة الإنجليزية: 
+            <span class="en-font font-black text-base text-rose-800">A, E, I, O, U</span>.
+            وهي الحروف التي تعطي الكلمات أصوات الحركة والمد مثل: <span class="en-font font-bold">Cat, Egg, Pig, Dog, Sun</span>.
+          </p>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-sky-50 border border-sky-200">
+          <h4 class="font-black text-sky-900 text-sm mb-1 flex items-center gap-1">
+            <span>🧱 2. الحروف الساكنة (Consonants):</span>
+          </h4>
+          <p class="text-sky-950 font-normal">
+            هي باقي الحروف الإنجليزية الـ 21 حرفاً (مثل: 
+            <span class="en-font font-bold">B, C, D, F, G, H, J, K, L, M, N, P, Q, R, S, T, V, W, X, Y, Z</span>).
+          </p>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-amber-50 border border-amber-200">
+          <h4 class="font-black text-amber-900 text-sm mb-1 flex items-center gap-1">
+            <span>🎲 3. كيف تفوز في اللعبة؟</span>
+          </h4>
+          <p class="text-amber-950 font-normal">
+            ارمِ النرد ثلاثي الأبعاد ليتحرك الأرنب البطل على رقعة المسار، وعند الهبوط على أي خانة، حدد هل الحرف هو حرف علة أم حرف ساكن لتحصل على نقاط الفوز وتصل للقلعة 🏰!
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-5 pt-3 border-t border-slate-100 flex justify-end">
+        <button onclick="toggleRulesModal(false)" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md transition">
+          فهمت القواعد، فلنلعب! 🚀
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Feedback Notification Toast -->
+  <div id="toastNotification" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 transform translate-y-28 opacity-0">
+    <div class="bg-slate-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl border-2 border-sky-400 flex items-center gap-3 backdrop-blur-md">
+      <span id="toastIcon" class="text-2xl">✨</span>
+      <div>
+        <p id="toastTitle" class="text-sm font-black text-white"></p>
+        <p id="toastMsg" class="text-xs text-slate-200 font-medium"></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. WEB AUDIO SYNTHESIZER (MUSIC & SFX)
+       ========================================================================= */
+    class WebAudioFX {
+      constructor() {
+        this.ctx = null;
+        this.soundEnabled = true;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playPop() {
+        if (!this.soundEnabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(750, now + 0.05);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      }
+      playSuccess() {
+        if (!this.soundEnabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+          gain.gain.setValueAtTime(0.001, now + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.16, now + idx * 0.08 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.25);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 0.28);
+        });
+      }
+      playError() {
+        if (!this.soundEnabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const notes = [280, 210];
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+          gain.gain.setValueAtTime(0.15, now + idx * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.2);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.12);
+          osc.stop(now + idx * 0.12 + 0.22);
+        });
+      }
+      playDiceRattle() {
+        if (!this.soundEnabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        for (let i = 0; i < 7; i++) {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(200 + Math.random() * 300, now + i * 0.09);
+          gain.gain.setValueAtTime(0.08, now + i * 0.09);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.06);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + i * 0.09);
+          osc.stop(now + i * 0.09 + 0.07);
+        }
+      }
+    }
+    const sfx = new WebAudioFX();
+
+    /* =========================================================================
+       2. CANADIAN / ENGLISH & ARABIC SPEECH ENGINE
+       ========================================================================= */
+    class PhonicsAudioSpeaker {
+      constructor() {
+        this.synth = window.speechSynthesis;
+        this.enVoice = null;
+        this.arVoice = null;
+        this.initVoices();
+        if (this.synth && this.synth.onvoiceschanged !== undefined) {
+          this.synth.onvoiceschanged = () => this.initVoices();
+        }
+      }
+      initVoices() {
+        if (!this.synth) return;
+        const voices = this.synth.getVoices();
+        this.enVoice = voices.find(v => v.lang === 'en-CA' || v.lang.includes('CA') || (v.lang.startsWith('en') && v.name.toLowerCase().includes('canada')))
+          || voices.find(v => v.lang.startsWith('en') && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('samantha') || v.name.toLowerCase().includes('zira')))
+          || voices.find(v => v.lang.startsWith('en'))
+          || null;
+
+        this.arVoice = voices.find(v => v.lang && (v.lang.startsWith('ar') || v.lang.includes('AR'))) || null;
+      }
+      speakEnglish(text, onEnd = null) {
+        if (!sfx.soundEnabled || !this.synth) { if (onEnd) onEnd(); return; }
+        this.synth.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        if (this.enVoice) utter.voice = this.enVoice;
+        utter.lang = 'en-CA';
+        utter.rate = 0.88;
+        utter.pitch = 1.1;
+        if (onEnd) {
+          utter.onend = onEnd;
+          utter.onerror = onEnd;
+        }
+        this.synth.speak(utter);
+      }
+      speakArabic(text, onEnd = null) {
+        if (!sfx.soundEnabled || !this.synth) { if (onEnd) onEnd(); return; }
+        this.synth.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        if (this.arVoice) utter.voice = this.arVoice;
+        utter.lang = 'ar-SA';
+        utter.rate = 0.95;
+        if (onEnd) {
+          utter.onend = onEnd;
+          utter.onerror = onEnd;
+        }
+        this.synth.speak(utter);
+      }
+    }
+    const speaker = new PhonicsAudioSpeaker();
+
+    /* =========================================================================
+       3. PHONICS DATA: LETTERS, VOWELS, CONSONANTS & WORDS
+       ========================================================================= */
+    const VOWELS_SET = new Set(['A', 'E', 'I', 'O', 'U']);
+
+    const PHONICS_DICTIONARY = {
+      'A': { word: 'Apple', ar: 'تفاحة', type: 'vowel', icon: '🍎' },
+      'B': { word: 'Ball', ar: 'كرة', type: 'consonant', icon: '⚽' },
+      'C': { word: 'Cat', ar: 'قطة', type: 'consonant', icon: '🐱' },
+      'D': { word: 'Duck', ar: 'بطة', type: 'consonant', icon: '🦆' },
+      'E': { word: 'Elephant', ar: 'فيل', type: 'vowel', icon: '🐘' },
+      'F': { word: 'Fish', ar: 'سمكة', type: 'consonant', icon: '🐟' },
+      'G': { word: 'Guitar', ar: 'جيتار', type: 'consonant', icon: '🎸' },
+      'H': { word: 'Hat', ar: 'قبعة', type: 'consonant', icon: '🎩' },
+      'I': { word: 'Igloo', ar: 'كوخ ثلجي', type: 'vowel', icon: '🧊' },
+      'J': { word: 'Jam', ar: 'مربى', type: 'consonant', icon: '🍓' },
+      'K': { word: 'Kite', ar: 'طائرة ورقية', type: 'consonant', icon: '🪁' },
+      'L': { word: 'Lion', ar: 'أسد', type: 'consonant', icon: '🦁' },
+      'M': { word: 'Monkey', ar: 'قرد', type: 'consonant', icon: '🐵' },
+      'N': { word: 'Nest', ar: 'عش', type: 'consonant', icon: '🪺' },
+      'O': { word: 'Orange', ar: 'برتقالة', type: 'vowel', icon: '🍊' },
+      'P': { word: 'Penguin', ar: 'بطريق', type: 'consonant', icon: '🐧' },
+      'Q': { word: 'Queen', ar: 'ملكة', type: 'consonant', icon: '👑' },
+      'R': { word: 'Rabbit', ar: 'أرنب', type: 'consonant', icon: '🐰' },
+      'S': { word: 'Sun', ar: 'شمس', type: 'consonant', icon: '☀️' },
+      'T': { word: 'Tiger', ar: 'نمر', type: 'consonant', icon: '🐯' },
+      'U': { word: 'Umbrella', ar: 'مظلة', type: 'vowel', icon: '☂️' },
+      'V': { word: 'Van', ar: 'شاحنة', type: 'consonant', icon: '🚐' },
+      'W': { word: 'Watch', ar: 'ساعة يد', type: 'consonant', icon: '⌚' },
+      'Y': { word: 'Yam', ar: 'بطاطا حلوة', type: 'consonant', icon: '🍠' },
+      'Z': { word: 'Zebra', ar: 'حمار وحشي', type: 'consonant', icon: '🦓' }
+    };
+
+    // 24 Steps Board Track
+    const BOARD_STEPS = [
+      { num: 1, letter: 'A', special: 'start' },
+      { num: 2, letter: 'B' },
+      { num: 3, letter: 'C' },
+      { num: 4, letter: 'E' },
+      { num: 5, letter: 'D' },
+      { num: 6, letter: 'F' },
+      { num: 7, letter: 'I' },
+      { num: 8, letter: 'G' },
+      { num: 9, letter: 'H' },
+      { num: 10, letter: 'O' },
+      { num: 11, letter: 'J' },
+      { num: 12, letter: 'K' },
+      { num: 13, letter: 'U' },
+      { num: 14, letter: 'L' },
+      { num: 15, letter: 'M' },
+      { num: 16, letter: 'A' },
+      { num: 17, letter: 'P' },
+      { num: 18, letter: 'R' },
+      { num: 19, letter: 'E' },
+      { num: 20, letter: 'S' },
+      { num: 21, letter: 'T' },
+      { num: 22, letter: 'O' },
+      { num: 23, letter: 'W' },
+      { num: 24, letter: 'U', special: 'castle' }
+    ];
+
+    /* =========================================================================
+       4. GAME STATE VARIABLES
+       ========================================================================= */
+    let currentScore = 0;
+    let currentStreak = 0;
+    let playerBoardPos = 1; // 1 to 24
+    let isRolling = false;
+    let activeGameMode = 'board'; // 'board' or 'quick'
+    let currentActiveLetter = 'A';
+
+    /* =========================================================================
+       5. 3D DICE ROLLING LOGIC & ORIENTATIONS
+       ========================================================================= */
+    const DICE_ORIENTATIONS = [
+      { num: 1, x: 0, y: 0 },
+      { num: 2, x: 0, y: -90 },
+      { num: 3, x: 0, y: -180 },
+      { num: 4, x: 0, y: 90 },
+      { num: 5, x: -90, y: 0 },
+      { num: 6, x: 90, y: 0 }
+    ];
+
+    function rollDiceAction() {
+      if (isRolling) return;
+      sfx.playPop();
+      sfx.playDiceRattle();
+
+      isRolling = true;
+      document.getElementById('btnRollDice').disabled = true;
+
+      const diceCube = document.getElementById('diceCube');
+      const rolledNumber = Math.floor(Math.random() * 6) + 1; // 1 to 6
+      const orient = DICE_ORIENTATIONS[rolledNumber - 1];
+
+      // Add extra tumbling rotations (e.g. 720 or 1080 deg)
+      const targetX = orient.x + 720;
+      const targetY = orient.y + 1080;
+
+      diceCube.style.setProperty('--targetX', `${targetX}deg`);
+      diceCube.style.setProperty('--targetY', `${targetY}deg`);
+
+      diceCube.classList.remove('is-rolling');
+      void diceCube.offsetWidth; // trigger reflow
+      diceCube.classList.add('is-rolling');
+
+      document.getElementById('diceOutcomeSummary').textContent = "النرد يتدحرج... 🎲";
+
+      setTimeout(() => {
+        isRolling = false;
+        document.getElementById('btnRollDice').disabled = false;
+        diceCube.classList.remove('is-rolling');
+        diceCube.style.transform = `translateZ(-45px) rotateX(${orient.x}deg) rotateY(${orient.y}deg)`;
+
+        handleDiceResult(rolledNumber);
+      }, 1150);
+    }
+
+    function handleDiceResult(rollVal) {
+      document.getElementById('diceOutcomeSummary').textContent = `النتيجة: تقدم ${rollVal} خطوات! 🎯`;
+      speaker.speakEnglish(`Rolled a ${rollVal}!`);
+
+      if (activeGameMode === 'board') {
+        movePlayerOnBoard(rollVal);
+      } else {
+        // Quick challenge mode: pick a random letter
+        const allLetters = Object.keys(PHONICS_DICTIONARY);
+        const randomLetter = allLetters[Math.floor(Math.random() * allLetters.length)];
+        setQuickChallengeLetter(randomLetter);
+      }
+    }
+
+    function movePlayerOnBoard(steps) {
+      let nextPos = playerBoardPos + steps;
+      if (nextPos > 24) nextPos = 24;
+
+      playerBoardPos = nextPos;
+      document.getElementById('currentTileNum').textContent = playerBoardPos;
+      renderBoardGrid();
+
+      const landedTile = BOARD_STEPS[playerBoardPos - 1];
+      currentActiveLetter = landedTile.letter;
+
+      // Check if finished Castle
+      if (playerBoardPos === 24) {
+        setTimeout(() => {
+          showTileChallengeModal(landedTile.letter, true);
+        }, 500);
+      } else {
+        setTimeout(() => {
+          showTileChallengeModal(landedTile.letter, false);
+        }, 500);
+      }
+    }
+
+    /* =========================================================================
+       6. RENDERING THE BOARD GRID TILES
+       ========================================================================= */
+    function renderBoardGrid() {
+      const container = document.getElementById('boardGridContainer');
+      container.innerHTML = '';
+
+      BOARD_STEPS.forEach(step => {
+        const isCurrent = (step.num === playerBoardPos);
+        const letterData = PHONICS_DICTIONARY[step.letter];
+        const isVowel = VOWELS_SET.has(step.letter);
+
+        const tileEl = document.createElement('div');
+        tileEl.className = `board-tile relative rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-between border-2 transition ${
+          isCurrent 
+            ? 'current-active bg-amber-100 border-amber-400' 
+            : isVowel 
+              ? 'bg-rose-50/80 border-rose-200' 
+              : 'bg-white border-slate-200'
+        }`;
+
+        // Tile Number & Castle/Start label
+        let badgeHtml = `<span class="text-[9px] font-black ${isCurrent ? 'text-amber-900 font-extrabold' : 'text-slate-400'} en-font">#${step.num}</span>`;
+        if (step.special === 'start') {
+          badgeHtml = `<span class="text-[9px] font-black bg-emerald-100 text-emerald-800 px-1 rounded">START</span>`;
+        } else if (step.special === 'castle') {
+          badgeHtml = `<span class="text-[9px] font-black bg-amber-400 text-slate-900 px-1 rounded">🏰 FINISH</span>`;
+        }
+
+        tileEl.innerHTML = `
+          <div class="w-full flex items-center justify-between">
+            ${badgeHtml}
+            <span class="text-xs">${letterData.icon}</span>
+          </div>
+          <div class="my-1 text-xl sm:text-2xl font-black en-font ${isVowel ? 'text-rose-700' : 'text-sky-800'}">
+            ${step.letter}
+          </div>
+          <div class="text-[10px] font-bold text-slate-500">
+            ${isCurrent ? '🐰 أنت هنا' : letterData.word}
+          </div>
+        `;
+
+        tileEl.onclick = () => {
+          sfx.playPop();
+          playPhonicsLetter(step.letter, letterData.word, isVowel);
+        };
+
+        container.appendChild(tileEl);
+      });
+    }
+
+    /* =========================================================================
+       7. TILE CHALLENGE MODAL LOGIC
+       ========================================================================= */
+    function showTileChallengeModal(letter, isCastle) {
+      const modal = document.getElementById('tileChallengeModal');
+      const letterData = PHONICS_DICTIONARY[letter];
+      currentActiveLetter = letter;
+
+      document.getElementById('tileModalLetter').textContent = letter;
+      document.getElementById('tileModalWordHint').textContent = `${letterData.word} ${letterData.icon}`;
+
+      if (isCastle) {
+        document.getElementById('tileModalTitle').textContent = "🎉 وصلت إلى القلعة! التحدي الذهبي الأخير:";
+      } else {
+        document.getElementById('tileModalTitle').textContent = `هبطت على الخانة #${playerBoardPos}!`;
+      }
+
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      const content = document.getElementById('tileModalContent');
+      content.classList.remove('scale-90');
+      content.classList.add('scale-100');
+
+      // Speak prompt
+      speaker.speakArabic("ما هو نوع هذا الحرف؟", () => {
+        speaker.speakEnglish(`${letter}... for ${letterData.word}`);
+      });
+    }
+
+    function hideTileChallengeModal() {
+      const modal = document.getElementById('tileChallengeModal');
+      const content = document.getElementById('tileModalContent');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      content.classList.add('scale-90');
+      content.classList.remove('scale-100');
+    }
+
+    function evaluateModalAnswer(userChoice) {
+      sfx.playPop();
+      const letterData = PHONICS_DICTIONARY[currentActiveLetter];
+      const isCorrect = (userChoice === letterData.type);
+
+      if (isCorrect) {
+        sfx.playSuccess();
+        currentScore += 10;
+        currentStreak += 1;
+        updateScoreStats();
+
+        speaker.speakArabic("الإجابة صحيحة", () => {
+          speaker.speakEnglish(`Yes! ${currentActiveLetter} is a ${letterData.type}!`);
+        });
+
+        confetti({ particleCount: 45, spread: 65 });
+        showToast(true, `أحسنت! (${currentActiveLetter}) هو ${letterData.type === 'vowel' ? 'حرف علة 🍎' : 'حرف ساكن 🧱'}`);
+
+        hideTileChallengeModal();
+
+        // Check if won Castle
+        if (playerBoardPos === 24) {
+          setTimeout(() => {
+            confetti({ particleCount: 120, spread: 90 });
+            speaker.speakArabic("مبارك يا بطل! لقد أنهيت سباق النرد ووصلت إلى قلعة المعرفة بنجاح تام!");
+            showToast(true, "🏆 تهانينا! فزت بالسباق وجمعت أعلى النقاط!");
+          }, 800);
+        }
+      } else {
+        sfx.playError();
+        currentStreak = 0;
+        updateScoreStats();
+
+        const card = document.getElementById('tileModalContent');
+        card.classList.add('shake-error');
+        setTimeout(() => card.classList.remove('shake-error'), 450);
+
+        speaker.speakArabic("إجابة خاطئة");
+        showToast(false, `حاول ثانية! تذكر أن حروف العلة هي A, E, I, O, U فقط.`);
+      }
+    }
+
+    /* =========================================================================
+       8. QUICK CHALLENGE MODE LOGIC
+       ========================================================================= */
+    function setQuickChallengeLetter(ltr) {
+      currentActiveLetter = ltr;
+      const data = PHONICS_DICTIONARY[ltr];
+      document.getElementById('quickLetterBadge').textContent = ltr;
+      document.getElementById('quickWordHint').textContent = `${data.word} ${data.icon}`;
+      speaker.speakEnglish(`${ltr}... ${data.word}`);
+    }
+
+    function answerClassification(choice) {
+      sfx.playPop();
+      const letterData = PHONICS_DICTIONARY[currentActiveLetter];
+      const isCorrect = (choice === letterData.type);
+
+      if (isCorrect) {
+        sfx.playSuccess();
+        currentScore += 15;
+        currentStreak += 1;
+        updateScoreStats();
+
+        confetti({ particleCount: 30, spread: 55 });
+        speaker.speakArabic("الإجابة صحيحة", () => {
+          speaker.speakEnglish(`Excellent! ${currentActiveLetter} is a ${letterData.type}!`);
+        });
+
+        showToast(true, `ممتاز! (${currentActiveLetter}) هو ${letterData.type === 'vowel' ? 'حرف علّة 🍎' : 'حرف ساكن 🧱'}`);
+
+        // Pick next letter after 1s
+        setTimeout(() => {
+          const keys = Object.keys(PHONICS_DICTIONARY);
+          const nextLtr = keys[Math.floor(Math.random() * keys.length)];
+          setQuickChallengeLetter(nextLtr);
+        }, 1100);
+      } else {
+        sfx.playError();
+        currentStreak = 0;
+        updateScoreStats();
+
+        speaker.speakArabic("إجابة خاطئة");
+        showToast(false, `إجابة غير صحيحة! الحرف (${currentActiveLetter}) هو ${letterData.type === 'vowel' ? 'حرف علة' : 'حرف ساكن'}.`);
+      }
+    }
+
+    /* =========================================================================
+       9. HELPERS, AUDIO ACTIONS, MODALS & RESET
+       ========================================================================= */
+    function playPhonicsLetter(ltr, word, isVowel) {
+      sfx.playPop();
+      speaker.speakEnglish(`${ltr}! ${word}!`, () => {
+        speaker.speakArabic(isVowel ? "حرف علة" : "حرف ساكن");
+      });
+      showToast(true, `${ltr}: ${word} (${isVowel ? 'حرف علّة 🍎' : 'حرف ساكن 🧱'})`);
+    }
+
+    function playCurrentChallengeAudio() {
+      sfx.playPop();
+      const data = PHONICS_DICTIONARY[currentActiveLetter];
+      speaker.speakEnglish(`${currentActiveLetter}... for ${data.word}!`);
+    }
+
+    function playCurrentModalLetterAudio() {
+      sfx.playPop();
+      const data = PHONICS_DICTIONARY[currentActiveLetter];
+      speaker.speakEnglish(`${currentActiveLetter}... ${data.word}`);
+    }
+
+    function switchGameMode(mode) {
+      sfx.playPop();
+      activeGameMode = mode;
+      const btnBoard = document.getElementById('btnModeBoard');
+      const btnQuick = document.getElementById('btnModeQuick');
+      const viewBoard = document.getElementById('viewBoardRace');
+      const viewQuick = document.getElementById('viewQuickChallenge');
+
+      if (mode === 'board') {
+        btnBoard.className = "px-4 py-1.5 rounded-xl text-xs sm:text-sm font-black transition bg-white text-sky-700 shadow-xs flex items-center gap-1.5";
+        btnQuick.className = "px-4 py-1.5 rounded-xl text-xs sm:text-sm font-black transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5";
+        viewBoard.classList.remove('hidden');
+        viewQuick.classList.add('hidden');
+        document.getElementById('playerStatusTitle').textContent = "سباق رقعة النرد!";
+        document.getElementById('playerStatusDesc').textContent = "ارمِ النرد وتقدم بالخطوات نحو القلعة";
+      } else {
+        btnQuick.className = "px-4 py-1.5 rounded-xl text-xs sm:text-sm font-black transition bg-white text-sky-700 shadow-xs flex items-center gap-1.5";
+        btnBoard.className = "px-4 py-1.5 rounded-xl text-xs sm:text-sm font-black transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5";
+        viewBoard.classList.add('hidden');
+        viewQuick.classList.remove('hidden');
+        document.getElementById('playerStatusTitle').textContent = "تحدي الفرز السريع!";
+        document.getElementById('playerStatusDesc').textContent = "صنف الحرف فوراً لتجمع أعلى النقاط";
+        setQuickChallengeLetter('A');
+      }
+    }
+
+    function updateScoreStats() {
+      document.getElementById('scoreDisplay').textContent = currentScore;
+      document.getElementById('streakDisplay').textContent = currentStreak;
+    }
+
+    function toggleRulesModal(show) {
+      sfx.playPop();
+      const modal = document.getElementById('rulesModal');
+      if (show) {
+        modal.classList.remove('opacity-0', 'pointer-events-none');
+      } else {
+        modal.classList.add('opacity-0', 'pointer-events-none');
+      }
+    }
+
+    function toggleAudio() {
+      sfx.playPop();
+      sfx.soundEnabled = !sfx.soundEnabled;
+      document.getElementById('soundIcon').textContent = sfx.soundEnabled ? '🔊' : '🔇';
+      document.getElementById('soundText').textContent = sfx.soundEnabled ? 'الصوت: مفعل' : 'الصوت: مكتوم';
+      showToast(true, sfx.soundEnabled ? "تم تفعيل الصوت 🔊" : "تم كتم الصوت 🔇");
+    }
+
+    function resetWholeGame() {
+      sfx.playPop();
+      currentScore = 0;
+      currentStreak = 0;
+      playerBoardPos = 1;
+      updateScoreStats();
+      document.getElementById('currentTileNum').textContent = '1';
+      document.getElementById('diceOutcomeSummary').textContent = "تمت إعادة اللعبة من البداية 🔄";
+      renderBoardGrid();
+      hideTileChallengeModal();
+      showToast(true, "تمت إعادة تعيين اللعبة بنجاح! حظاً موفقاً 🎲");
+    }
+
+    function showToast(isCorrect, message) {
+      const toast = document.getElementById('toastNotification');
+      if (!toast) return;
+      const inner = toast.querySelector('div');
+      const title = document.getElementById('toastTitle');
+      const msg = document.getElementById('toastMsg');
+      const icon = document.getElementById('toastIcon');
+
+      if (isCorrect) {
+        inner.className = "bg-emerald-600 text-white px-6 py-3.5 rounded-2xl shadow-2xl border-2 border-emerald-300 flex items-center gap-3 backdrop-blur-md transform scale-105 transition duration-200";
+        icon.textContent = "✅";
+        title.textContent = "إجابة صحيحة";
+        msg.textContent = message;
+      } else {
+        inner.className = "bg-rose-600 text-white px-6 py-3.5 rounded-2xl shadow-2xl border-2 border-rose-300 flex items-center gap-3 backdrop-blur-md transform scale-105 transition duration-200";
+        icon.textContent = "❌";
+        title.textContent = "تنبيه";
+        msg.textContent = message;
+      }
+
+      toast.classList.remove('translate-y-28', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-28', 'opacity-0');
+      }, 2600);
+    }
+
+    /* Initialize upon loading */
+    window.onload = function() {
+      renderBoardGrid();
+      updateScoreStats();
+    };
+  </script>
+</body>
+</html>
